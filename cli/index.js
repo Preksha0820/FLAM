@@ -30,7 +30,7 @@ program
 program
   .command("worker-stop")
   .description("Stop all workers")
-  .action(workerStop);
+  .action(workerStopCommand);
 
 // LIST JOBS
 program

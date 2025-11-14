@@ -1,4 +1,4 @@
-import * as jobRepo from '../db/repositories/jobRepo'
+import * as jobRepo from '../db/repositories/jobRepo.js'
 import * as dlqRepo from '../db/repositories/dlqRepo.js'
 import * as configRepo from '../db/repositories/configRepo.js'
 

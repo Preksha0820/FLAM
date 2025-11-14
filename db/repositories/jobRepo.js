@@ -1,4 +1,4 @@
-import { jsx } from "react/jsx-runtime";
+
 import { readJSON,writeJSON } from "../../utils/fileStorage.js";
 
 // here we are reading the json file and writing to it to store the jobs

@@ -1,20 +1,20 @@
-import { readJSON,writeJSON } from "../../utils/fileStorage.js";
+import { withLock } from "../../utils/fileStorage.js";
 
+const file = "config.json";
 
-const file="config.json"
+export const get = (key) => {
+  return withLock(file, (data) => {
+    return data ? data[key] : undefined;
+  });
+};
 
-export const get=(key)=>{
-    const config=readJSON(file)
-    return config[key]
-}
-
-export const set=(key,value)=>{
-    const config=readJSON(file)
-    config[key]=value;
-    writeJSON(file,config)
-    return config;
-}
+export const set = (key, value) => {
+  return withLock(file, (data) => {
+    data[key] = value;
+    return data;
+  });
+};
 
 export const getAll = () => {
-  return readJSON(file);
+  return withLock(file, (data) => data || {});
 };

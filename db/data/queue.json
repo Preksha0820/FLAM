@@ -1,37 +1,43 @@
 {
   "jobs": [
     {
-      "id": "job1",
-      "command": "sleep 2",
-      "state": "pending",
-      "attempts": 0,
-      "max_retries": 3,
-      "run_at": 1763149501211,
-      "created_at": 1763149501211,
-      "updated_at": 1763149501211,
-      "last_error": null
-    },
-    {
       "id": "job2",
-      "command": "sleep 2",
-      "state": "pending",
+      "command": "echo two",
+      "run_at": 1763195680455,
+      "state": "completed",
       "attempts": 0,
       "max_retries": 3,
-      "run_at": 1763194561712,
-      "created_at": 1763194561712,
-      "updated_at": 1763194561712,
-      "last_error": null
+      "created_at": 1763195680455,
+      "updated_at": 1763196246432,
+      "last_error": null,
+      "worker_id": "worker-22192",
+      "processing_started_at": 1763196246427
     },
     {
       "id": "job3",
-      "command": "sleep 2",
-      "state": "pending",
+      "command": "echo three",
+      "run_at": 1763195680507,
+      "state": "completed",
       "attempts": 0,
       "max_retries": 3,
-      "run_at": 1763194564404,
-      "created_at": 1763194564404,
-      "updated_at": 1763194564404,
-      "last_error": null
+      "created_at": 1763195680507,
+      "updated_at": 1763196246432,
+      "last_error": null,
+      "worker_id": "worker-22193",
+      "processing_started_at": 1763196246428
+    },
+    {
+      "id": "job4",
+      "command": "echo four",
+      "run_at": 1763195680557,
+      "state": "completed",
+      "attempts": 0,
+      "max_retries": 3,
+      "created_at": 1763195680557,
+      "updated_at": 1763196246436,
+      "last_error": null,
+      "worker_id": "worker-22192",
+      "processing_started_at": 1763196246432
     }
   ]
 }

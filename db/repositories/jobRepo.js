@@ -3,116 +3,135 @@ import { readJSON,writeJSON } from "../../utils/fileStorage.js";
 
 // here we are reading the json file and writing to it to store the jobs
 
-const filePath="queue.json";
-export const createJob=(job)=>{
-    const data=readJSON(filePath);
-    data.jobs.push(job);
-    writeJSON(filePath,data);
-    return data;
-}
+import { withLock } from "../../utils/fileStorage.js";
 
+const QUEUE_FILE = "queue.json";
 
-export const getNextRunnableJob=()=>{
-    const data=readJSON(filePath);      
-    const now=Date.now();
+export const createJob = (job) => {
+    return withLock(QUEUE_FILE, (data) => {
+        data.jobs = data.jobs || [];
+        data.jobs.push(job);
+        // return the created job as result
+        return job;
+    });
+};
 
-    const job=data.jobs.find(
-        (j)=>j.state==="pending" && (j.runAt<=now)
+export const getNextRunnableJob = (workerId) => {
+    return withLock(QUEUE_FILE, (data) => {
+        data.jobs = data.jobs || [];
+        const now = Date.now();
 
-    )
+        const idx = data.jobs.findIndex(
+            (j) => j.state === "pending" && j.run_at <= now
+        );
 
-    // if koi job ni mili  so returning null
-    if(!job){
-        return null;
-    }
+        if (idx === -1) return null;
 
-    job.state="processing";
-    job.updated_at=now;
+        const job = data.jobs[idx];
+        job.state = "processing";
+        job.worker_id = workerId;
+        job.updated_at = now;
+        job.processing_started_at = now;
 
-    writeJSON("queue.json",data);
-    return job;
-}
+        return job;
+    });
+};
 
-export const markProcessing=(id)=>{
-    const data=readJSON(filePath);
-    const now=Date.now();
-    
-    const job=data.jobs.find((j)=>j.id===id);
-    if(!job){
-        return null
-    }
-    job.state="processing"
-    job.updated_at=now;
+export const markProcessing = (id) => {
+    return withLock(QUEUE_FILE, (data) => {
+        data.jobs = data.jobs || [];
+        const now = Date.now();
+        const job = data.jobs.find((j) => j.id === id);
+        if (!job) return null;
+        job.state = "processing";
+        job.updated_at = now;
+        job.processing_started_at = now;
+        return job;
+    });
+};
 
-    writeJSON(filePath,data);
-    return job;
-}
+export const markCompleted = (id) => {
+    return withLock(QUEUE_FILE, (data) => {
+        data.jobs = data.jobs || [];
+        const now = Date.now();
+        const job = data.jobs.find((j) => j.id === id);
+        if (!job) return null;
+        job.state = "completed";
+        job.updated_at = now;
+        return job;
+    });
+};
 
-export const markCompleted=(id)=>{
-    const data=readJSON(filePath);
-    const now=Date.now();
-    
-    const job=data.jobs.find((j)=>j.id===id);
-    if(!job){
-        return null
-    }
-    job.state="completed"
-    job.updated_at=now;
+export const markFailed = (id, error) => {
+    return withLock(QUEUE_FILE, (data) => {
+        data.jobs = data.jobs || [];
+        const job = data.jobs.find((j) => j.id === id);
+        if (!job) return null;
+        job.state = "failed";
+        job.last_error = error;
+        job.updated_at = Date.now();
+        return job;
+    });
+};
 
-    writeJSON(filePath,data);
-    return job;
-}
+export const incrementAttempts = (id) => {
+    return withLock(QUEUE_FILE, (data) => {
+        data.jobs = data.jobs || [];
+        const job = data.jobs.find((j) => j.id === id);
+        if (!job) return null;
+        job.attempts = (job.attempts || 0) + 1;
+        job.updated_at = Date.now();
+        return job;
+    });
+};
 
-export const markFailed=(id, error) => {
-  const data = readJSON(filePath);
-  const job = data.jobs.find((j) => j.id === id);
-  if (!job) return null;
+export const rescheduleJob = (id, runAt) => {
+    return withLock(QUEUE_FILE, (data) => {
+        data.jobs = data.jobs || [];
+        const job = data.jobs.find((j) => j.id === id);
+        if (!job) return null;
+        job.state = "pending";
+        job.run_at = runAt;
+        job.updated_at = Date.now();
+        return job;
+    });
+};
 
-  job.state = "failed";
-  job.last_error = error;
-  job.updated_at = Date.now();
+export const getJobById = (id) => {
+    return withLock(QUEUE_FILE, (data) => {
+        data.jobs = data.jobs || [];
+        return data.jobs.find((j) => j.id === id) || null;
+    });
+};
 
-  writeJSON(filePath, data);
-  return job;
-}
+export const listByState = (state) => {
+    return withLock(QUEUE_FILE, (data) => {
+        data.jobs = data.jobs || [];
+        return data.jobs.filter((j) => j.state === state);
+    });
+};
 
-export const incrementAttemps=(id)=>{
-    const data=readJSON(filePath);
-    const job=data.jobs.find((j)=>j.id===id);
+// Clean up stale processing jobs (jobs stuck in processing state)
+export const cleanupStaleJobs = (staleTimeoutMs = 300000) => {
+    return withLock(QUEUE_FILE, (data) => {
+        data.jobs = data.jobs || [];
+        const now = Date.now();
+        let cleanedCount = 0;
 
-    if(!job){
-        return null;
-    }
+        data.jobs.forEach((job) => {
+            if (
+                job.state === "processing" &&
+                job.processing_started_at &&
+                now - job.processing_started_at > staleTimeoutMs
+            ) {
+                job.state = "pending";
+                job.worker_id = null;
+                job.processing_started_at = null;
+                job.updated_at = now;
+                cleanedCount++;
+            }
+        });
 
-    job.attempts+=1;
-    job.updated_at=Date.now();
-
-    writeJSON(filePath,data);
-    return job;
-}
-
-export const rescheduleJob=(id,runAt)=>{
-    const data=readJSON(filePath);
-    const job=data.jobs.find((j)=>j.id===id);
-    if(!job){
-        return null;
-    }
-
-    job.state = "pending";
-    job.runAt=runAt;
-    job.updated_at=Date.now();
-
-    writeJSON(filePath,data);
-    return job;
-}
-
-export const getJobById=(id)=>{
-    const data=readJSON(filePath);
-    return data.jobs.find((j)=>j.id===id) || null;
-}
-
-export const listByState=(state)=>{
-    const data=readJSON(filePath);
-    return data.jobs.filter((j)=>j.state===state);
-
-}
+        return cleanedCount;
+    });
+};

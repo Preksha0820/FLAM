@@ -1,79 +1,97 @@
-import { readJSON, writeJSON } from "../../utils/fileStorage.js";
+import { withLock } from "../../utils/fileStorage.js";
 
 const DLQ_FILE = "dlq.json";
 const QUEUE_FILE = "queue.json";
 
+// Move a job object to DLQ and remove it from the queue
+export const moveToDLQ = (jobObj, error) => {
+    let moved = null;
 
-// here we are moving the dead jobs to dlq and removing them from main queue
-export const moveToDLQ = (jobId, error) => {
-    const data = readJSON(DLQ_FILE);
+    // Remove from queue first
+    withLock(QUEUE_FILE, (qdata) => {
+        qdata.jobs = qdata.jobs || [];
+        const idx = qdata.jobs.findIndex((j) => j.id === jobObj.id);
+        if (idx !== -1) {
+            moved = qdata.jobs.splice(idx, 1)[0];
+        }
+        return qdata;
+    });
 
-    const queueData = readJSON(QUEUE_FILE);
+    if (!moved) {
+        // nothing to move
+        return null;
+    }
 
-    data.dlq.push({
-        id: jobId,
-        command: job.command,
-        attempts: job.attempts,
-        last_error: error,
-        failed_at: Date.now()
-    })
+    // Add to DLQ
+    withLock(DLQ_FILE, (ddata) => {
+        ddata.dlq = ddata.dlq || [];
+        ddata.dlq.push({
+            id: moved.id,
+            command: moved.command,
+            attempts: moved.attempts || 0,
+            last_error: error,
+            failed_at: Date.now(),
+        });
+        return ddata;
+    });
 
-    writeJSON(DLQ_FILE, dlqData);
-
-    queueData.jobs = queueData.jobs.filter((j) => j.id !== jobId);
-
-    writeJSON(QUEUE_FILE, queueData);
-}
-
-// listing all the dlq jobs
+    return moved;
+};
 
 export const listDLQJobs = () => {
-    const data = readJSON(DLQ_FILE);
-    return data.dlq;
-}
+    return withLock(DLQ_FILE, (ddata) => ddata.dlq || []);
+};
 
-
-export const getDLQById = () => {
-
-    const data = readJSON(DLQ_FILE);
-    const job = data.dlq.find((j) => j.id === id);
-    return job;
-}
+export const getDLQById = (id) => {
+    return withLock(DLQ_FILE, (ddata) => {
+        ddata.dlq = ddata.dlq || [];
+        return ddata.dlq.find((j) => j.id === id) || null;
+    });
+};
 
 export const deleteDLQById = (id) => {
-    const data = readJSON(DLQ_FILE)
-
-    data.dlq = data.dlq.filter((j) => j.id !== id)
-
-    writeJSON(DLQ_FILE, data);
-}
+    return withLock(DLQ_FILE, (ddata) => {
+        ddata.dlq = (ddata.dlq || []).filter((j) => j.id !== id);
+        return true;
+    });
+};
 
 export const retryJob = (id) => {
-    const data = readJSON(DLQ_FILE)
-    const job = data.dlq.find((j) => j.id === id)
+    let jobToRetry = null;
 
-    if (!job) return null
+    // remove from DLQ
+    withLock(DLQ_FILE, (ddata) => {
+        ddata.dlq = ddata.dlq || [];
+        const idx = ddata.dlq.findIndex((j) => j.id === id);
+        if (idx !== -1) {
+            jobToRetry = ddata.dlq.splice(idx, 1)[0];
+        }
+        return ddata;
+    });
 
-    data.dlq = data.dlq.filter((j) => j.id !== id);
+    if (!jobToRetry) return null;
 
     const newJob = {
-        id: job.id,
-        command: job.command,
+        id: jobToRetry.id,
+        command: jobToRetry.command,
         state: "pending",
         attempts: 0,
-        max_retries: 3,
+        max_retries: jobToRetry.max_retries || 3,
         run_at: Date.now(),
         created_at: Date.now(),
         updated_at: Date.now(),
         last_error: null,
-    }
+    };
 
-    const queueData = readJSON(QUEUE_FILE)
-    queueData.jobs.push(newJob)
-    writeJSON(QUEUE_FILE, queueData);
+    // push to queue
+    withLock(QUEUE_FILE, (qdata) => {
+        qdata.jobs = qdata.jobs || [];
+        qdata.jobs.push(newJob);
+        return qdata;
+    });
 
     return newJob;
-}
+};
 
 
 

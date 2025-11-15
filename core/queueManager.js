@@ -24,8 +24,8 @@ export const enqueue = (job) => {
 
 // fetch new runnable job
 
-export const getNextRunnableJob = () => {
-    return jobRepo.getNextRunnableJob()
+export const getNextRunnableJob = (workerId) => {
+    return jobRepo.getNextRunnableJob(workerId)
 }
 
 // mark completed 
@@ -38,9 +38,9 @@ export const handleFailure = (job, error) => {
     const maxRetries = configRepo.get("max_retries") || 3
     const backOffBase = configRepo.get("backoff_base") || 2
 
-    // incremnting attempts
+    // incrementing attempts
 
-    jobRepo.incrementAttemps(job.id)
+    jobRepo.incrementAttempts(job.id)
 
     const updated = jobRepo.getJobById(job.id);
 

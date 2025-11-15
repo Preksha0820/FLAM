@@ -1,3 +1,11 @@
 {
-    "dlq": []
+  "dlq": [
+    {
+      "id": "bad1",
+      "command": "abcxyz",
+      "attempts": 4,
+      "last_error": "Command failed: abcxyz\n/bin/sh: abcxyz: command not found\n",
+      "failed_at": 1763196396374
+    }
+  ]
 }

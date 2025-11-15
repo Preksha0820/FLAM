@@ -25,13 +25,21 @@ export const getNextRunnableJob = (workerId) => {
             (j) => j.state === "pending" && j.run_at <= now
         );
 
-        if (idx === -1) return null;
+        if (idx === -1){
+            console.log("No runnable job found");
+            return null;
+        } 
 
         const job = data.jobs[idx];
         job.state = "processing";
         job.worker_id = workerId;
         job.updated_at = now;
         job.processing_started_at = now;
+
+        // Log the claim to aid observability of which worker took which job
+        try {
+            console.log(`[CLAIM] worker ${workerId} claimed job ${job.id}`);
+        } catch (_) {}
 
         return job;
     });

@@ -19,7 +19,7 @@ export const startWorker = async (workerId) => {
 
         if (!job) {
             // no job worker should sleep
-            console.log(`Worker ${finalWorkerId} is idle, sleeping for ${idleDelay}ms`);
+            // console.log(`Worker ${finalWorkerId} is idle, sleeping for ${idleDelay}ms`);
             await sleep(idleDelay);
             continue;
         }

@@ -216,6 +216,9 @@ Output:
 ---
 ## 10. Example Session
 ```bash
+# Automated smoke test
+npm run smoke
+
 # 1. Enqueue jobs
 queuectl enqueue '{"id":"p1","command":"echo 1"}'
 queuectl enqueue '{"id":"p2","command":"echo 2"}'

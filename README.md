@@ -216,32 +216,60 @@ Output:
 ---
 ## 10. Example Session
 ```bash
-# Automated smoke test
+# QueueCTL – Handy Commands for Testing
+
+# Show global and per-command help
+queuectl --help
+queuectl enqueue --help
+queuectl worker-start --help
+queuectl list --help
+queuectl status --help
+queuectl dlq-list --help
+queuectl dlq-retry --help
+queuectl config-get --help
+queuectl config-set --help
+
+# Optional: run automated smoke test
 npm run smoke
 
-# 1. Enqueue jobs
+# Basic enqueue and processing
 queuectl enqueue '{"id":"p1","command":"echo 1"}'
 queuectl enqueue '{"id":"p2","command":"echo 2"}'
-queuectl enqueue '{"id":"fail","command":"badcmd"}'
+queuectl enqueue '{"id":"p3","command":"echo 3"}'
 
-# 2. Start workers
+# Enqueue a failing job to exercise retries + DLQ
+queuectl enqueue '{"id":"bad1","command":"definitelynotacommand_xyz"}'
+
+# Enqueue a delayed job (~5s in the future)
+queuectl enqueue '{"id":"delay1","command":"echo later","run_at":'$(($(date +%s000)+5000))'}'
+
+# Inspect pending jobs
+queuectl list --state pending
+
+# Start workers (2 processes)
 queuectl worker-start --count 2
 
-# 3. Observe logs
-[CLAIM] worker worker-12345 claimed job p1
-Worker worker-12345 Completed job: p1
-[CLAIM] worker worker-12346 claimed job p2
-fail failed attempt 1 → retry in 2s
-fail failed attempt 2 → retry in 4s
-fail moved to DLQ
-
-# 4. List DLQ
+# Observe status and lists (run a few times)
+queuectl status
+queuectl list --state processing
+queuectl list --state completed
 queuectl dlq-list
 
-# 5. Retry from DLQ
-queuectl dlq-retry fail
+# Retry a DLQ job by id (replace bad1 if different)
+queuectl dlq-retry bad1
 
-# 6. Check status
-queuectl status
+# Tweak configuration (polling + retries)
+queuectl config-get
+queuectl config-set worker_idle_delay 500
+queuectl config-set max_retries 3
+queuectl config-set backoff_base 2
+queuectl config-get
+
+# Far-future job (should remain pending)
+queuectl enqueue '{"id":"future1","command":"echo later","run_at": 9999999999999}'
+queuectl list --state pending
+
+# Stop workers
+queuectl worker-stop
 ```
 

@@ -1,56 +1,15 @@
 {
   "jobs": [
     {
-      "id": "delay2",
-      "command": "echo delay",
-      "run_at": 1763200844000,
-      "state": "completed",
+      "command": "echo later",
+      "id": "future1",
+      "run_at": 9999999999999,
+      "state": "pending",
       "attempts": 0,
       "max_retries": "5",
-      "created_at": 1763200834385,
-      "updated_at": 1763201375038,
-      "last_error": null,
-      "worker_id": "worker-31542",
-      "processing_started_at": 1763201375032
-    },
-    {
-      "id": "p1",
-      "command": "echo 1",
-      "state": "completed",
-      "attempts": 0,
-      "max_retries": "5",
-      "run_at": 1763200934028,
-      "created_at": 1763200934028,
-      "updated_at": 1763201375038,
-      "last_error": null,
-      "worker_id": "worker-31541",
-      "processing_started_at": 1763201375032
-    },
-    {
-      "id": "p2",
-      "command": "echo 2",
-      "state": "completed",
-      "attempts": 0,
-      "max_retries": "5",
-      "run_at": 1763200934077,
-      "created_at": 1763200934077,
-      "updated_at": 1763201375042,
-      "last_error": null,
-      "worker_id": "worker-31542",
-      "processing_started_at": 1763201375038
-    },
-    {
-      "id": "p3",
-      "command": "echo 3",
-      "state": "completed",
-      "attempts": 0,
-      "max_retries": "5",
-      "run_at": 1763200934126,
-      "created_at": 1763200934126,
-      "updated_at": 1763201375042,
-      "last_error": null,
-      "worker_id": "worker-31541",
-      "processing_started_at": 1763201375039
+      "created_at": 1763202605587,
+      "updated_at": 1763202605587,
+      "last_error": null
     }
   ]
 }

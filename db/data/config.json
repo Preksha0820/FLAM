@@ -1,5 +1,5 @@
 {
   "max_retries": "5",
-  "backoff_base": "3",
+  "backoff_base": "1",
   "worker_idle_delay": "2000"
 }

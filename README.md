@@ -242,22 +242,3 @@ queuectl dlq-retry fail
 queuectl status
 ```
 
----
-## 11. Troubleshooting
-| Issue | Cause | Fix |
-|-------|-------|-----|
-| Future job runs early | Provided `run_at` missing → defaults to now | Ensure `run_at` ms epoch included |
-| Workers idle too long | High `worker_idle_delay` | `config-set worker_idle_delay 500` |
-| Duplicate processing | Locking disabled/modified | Keep atomic `withLock` usage |
-| Job never retries | `max_retries` too low | Increase via `config-set max_retries` |
-| Command not found | Invalid shell command | Test command manually |
-
----
-## Notes
-Output examples are illustrative; timestamps, PIDs, and ordering vary.  
-This is a minimal learning implementation (file storage). For production: consider a real database, structured logs, metrics, and graceful shutdown coordination.
-
----
-## License
-ISC (see package.json).
-

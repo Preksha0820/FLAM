@@ -1,54 +1,54 @@
 {
   "jobs": [
     {
-      "command": "echo later",
+      "id": "p1",
+      "command": "echo 1",
+      "state": "completed",
+      "attempts": 0,
+      "max_retries": 2,
+      "run_at": 1763219783672,
+      "created_at": 1763219783672,
+      "updated_at": 1763219783743,
+      "last_error": null,
+      "worker_id": "worker-66520",
+      "processing_started_at": 1763219783739
+    },
+    {
+      "id": "p2",
+      "command": "echo 2",
+      "state": "completed",
+      "attempts": 0,
+      "max_retries": 2,
+      "run_at": 1763219783724,
+      "created_at": 1763219783724,
+      "updated_at": 1763219783747,
+      "last_error": null,
+      "worker_id": "worker-66520",
+      "processing_started_at": 1763219783744
+    },
+    {
+      "id": "p3",
+      "command": "echo 3",
+      "state": "completed",
+      "attempts": 0,
+      "max_retries": 2,
+      "run_at": 1763219783775,
+      "created_at": 1763219783775,
+      "updated_at": 1763219783956,
+      "last_error": null,
+      "worker_id": "worker-66520",
+      "processing_started_at": 1763219783949
+    },
+    {
       "id": "future1",
+      "command": "echo later",
       "run_at": 9999999999999,
       "state": "pending",
       "attempts": 0,
-      "max_retries": "5",
-      "created_at": 1763202605587,
-      "updated_at": 1763202605587,
+      "max_retries": "3",
+      "created_at": 1763219867342,
+      "updated_at": 1763219867342,
       "last_error": null
-    },
-    {
-      "id": "smk-1763203071248-ok1",
-      "command": "echo ok1",
-      "state": "completed",
-      "attempts": 0,
-      "max_retries": 2,
-      "run_at": 1763203071252,
-      "created_at": 1763203071252,
-      "updated_at": 1763203071308,
-      "last_error": null,
-      "worker_id": "worker-35517",
-      "processing_started_at": 1763203071301
-    },
-    {
-      "id": "smk-1763203071248-ok2",
-      "command": "echo ok2",
-      "state": "completed",
-      "attempts": 0,
-      "max_retries": 2,
-      "run_at": 1763203071253,
-      "created_at": 1763203071253,
-      "updated_at": 1763203071308,
-      "last_error": null,
-      "worker_id": "worker-35516",
-      "processing_started_at": 1763203071301
-    },
-    {
-      "id": "smk-1763203071248-delay",
-      "command": "echo delayed",
-      "run_at": 1763203072753,
-      "state": "completed",
-      "attempts": 0,
-      "max_retries": 2,
-      "created_at": 1763203071253,
-      "updated_at": 1763203072950,
-      "last_error": null,
-      "worker_id": "worker-35516",
-      "processing_started_at": 1763203072939
     }
   ]
 }

@@ -26,7 +26,7 @@ export const getNextRunnableJob = (workerId) => {
         );
 
         if (idx === -1){
-            console.log("No runnable job found");
+            // console.log("No runnable job found");
             return null;
         } 
 

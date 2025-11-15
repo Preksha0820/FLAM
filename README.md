@@ -272,4 +272,8 @@ queuectl list --state pending
 # Stop workers
 queuectl worker-stop
 ```
+## 🎥 Demo Video
+
+Watch the full demo here:  
+👉 [Click to View Demo Video](https://drive.google.com/file/d/1-4bC2duQb52dBFwrPnWBtoVvYyAHOrGX/view?usp=drivesdk)
 

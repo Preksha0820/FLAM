@@ -1,282 +1,263 @@
-Good — now you’re at the **dangerous middle point** where most people get stuck because they don’t know the **correct build order**.
+<div align="center">
 
-I’ll give you the **exact next steps**, in the **optimal sequence**, so you don’t waste hours doing the wrong thing.
+# queuectl – File‑Backed Job Queue
 
----
+Small, atomic, file-based job queue with retry + DLQ handling and a simple CLI.
 
-# ✅ **WHAT YOU MUST DO NEXT (Step-by-Step)**
+</div>
 
-This is the *correct* order to build QueueCTL so the system comes alive quickly.
-
----
-
-# 🔥 **1. Finish Your Database Layer First (MOST IMPORTANT)**
-
-Before writing any queue logic or worker logic, you need:
-
-## **✔ Job Schema**
-
-Fields:
-
-* id
-* command
-* state
-* attempts
-* max_retries
-* run_at
-* created_at
-* updated_at
-
-## **✔ DLQ Schema**
-
-Fields:
-
-* id
-* command
-* attempts
-* error
-* failed_at
-
-## **✔ Config Schema**
-
-Fields:
-
-* key
-* value
+## Contents
+1. Overview  
+2. Features  
+3. Installation & Run  
+4. Data Model  
+5. Job Lifecycle  
+6. Retry & Backoff  
+7. Dead Letter Queue (DLQ)  
+8. Configuration  
+9. Commands (with examples)  
+10. Example Session  
+11. Troubleshooting  
 
 ---
+## 1. Overview
+`queuectl` is a lightweight queue that stores state in JSON files (`db/data/*.json`). Multiple worker processes coordinate safely using advisory file locks so only one worker claims a job at a time.
 
-# 🔧 **2. Create Repository Methods (db/repositories)**
-
-This layer wraps your DB.
-
-### In `jobRepo.js` create:
-
-```
-createJob(job)
-getNextRunnableJob()
-markProcessing(id)
-markCompleted(id)
-markFailed(id, error)
-incrementAttempts(id)
-rescheduleJob(id, runAt)
-```
-
-### In `dlqRepo.js`:
-
-```
-moveToDLQ(job, error)
-listDLQ()
-retryFromDLQ(id)
-```
-
-### In `configRepo.js`:
-
-```
-getConfig(key)
-setConfig(key, value)
-getAllConfig()
-```
-
-⚠️ **Until this is complete, DO NOT start writing worker logic.**
+Use it to enqueue shell commands, run workers, inspect state, and manage failed jobs.
 
 ---
-
-# 🔥 **3. Build QueueManager (core/queueManager.js)**
-
-This file is the “brain”.
-Once database is ready, implement:
-
-### QueueManager Responsibilities:
-
-* add job
-* fetch next job
-* update job states
-* schedule retries
-* move to DLQ
-
-Implement functions:
-
-```
-enqueue(job)
-getNextJob()
-markProcessing(job)
-markCompleted(job)
-markFailed(job)
-handleRetry(job)
-moveToDLQ(job)
-```
-
-This connects repo logic to business rules.
+## 2. Features
+- Atomic job claiming (no duplicate processing)
+- Delayed jobs (`run_at` epoch ms)
+- Exponential backoff retries
+- Dead Letter Queue after max retries
+- Multiple workers via child processes
+- Configurable polling delay & retry parameters
+- Human-friendly CLI help with examples
 
 ---
-
-# 🔥 **4. Build JobProcessor (core/jobProcessor.js)**
-
-This will:
-
-* take a job
-* execute command using `child_process.exec`
-* determine success/failure
-* call QueueManager methods
-
-### Create:
-
+## 3. Installation & Run
+Clone the repo and install dependencies:
+```bash
+git clone https://github.com/Preksha0820/FLAM.git
+cd FLAM
+npm install
 ```
-process(job) {
-  exec(job.command)
+Use the CLI directly (bin is declared in `package.json`):
+```bash
+queuectl --help
+```
+If `queuectl` isn’t found, add a local link:
+```bash
+npm link
+```
+
+---
+## 4. Data Model
+### Job (queue.json `jobs[]`)
+| Field | Description |
+|-------|-------------|
+| id | Unique job identifier you supply |
+| command | Shell command executed |
+| state | `pending` | `processing` | `completed` | `failed` |
+| attempts | Number of attempts already made |
+| max_retries | Cap before DLQ move |
+| run_at | Epoch ms when job becomes runnable |
+| created_at | Creation timestamp (ms) |
+| updated_at | Last mutation timestamp (ms) |
+| processing_started_at | Timestamp when state changed to processing |
+| worker_id | Worker that claimed it |
+| last_error | Last error message (if any) |
+
+### DLQ (dlq.json `dlq[]`)
+| Field | Description |
+|-------|-------------|
+| id | Original job id |
+| command | Original command |
+| attempts | Total attempts made |
+| error | Final error message |
+| failed_at | Timestamp moved to DLQ |
+
+### Config (config.json `config[]`)
+Key/value pairs: `max_retries`, `backoff_base`, `worker_idle_delay`.
+
+---
+## 5. Job Lifecycle
+1. Enqueue → job stored with `state=pending` and `run_at` (now or future).  
+2. Worker polls → first pending job with `run_at <= now` is claimed atomically, moved to `processing`.  
+3. Execution → command runs.  
+4. Success → `state=completed`.  
+5. Failure → attempts increment; either rescheduled (backoff) or moved to DLQ if limit exceeded.  
+
+---
+## 6. Retry & Backoff
+Formula: `delay_seconds = backoff_base ^ attempts` (attempts after increment).  
+Rescheduled job: `state=pending`, `run_at = now + delay_ms`.  
+Default values: `max_retries=3`, `backoff_base=2`.
+
+Example failure log:
+```
+bad1 failed attempt 1 → retry in 2s
+bad1 failed attempt 2 → retry in 4s
+bad1 moved to DLQ
+```
+
+---
+## 7. Dead Letter Queue (DLQ)
+Jobs exceeding `max_retries` are removed from the main queue and appended to `dlq.json`.  
+You can retry them back into the main queue via `dlq-retry <id>` (attempts reset to 0).
+
+---
+## 8. Configuration
+Set via CLI; values persisted in `config.json`.
+| Key | Meaning | Default |
+|-----|---------|---------|
+| max_retries | Attempts before DLQ | 3 |
+| backoff_base | Exponential base | 2 |
+| worker_idle_delay | Poll interval ms | 2000 |
+
+Examples:
+```bash
+queuectl config-set max_retries 5
+queuectl config-set backoff_base 3
+queuectl config-set worker_idle_delay 500
+```
+
+---
+## 9. Commands
+Run `queuectl <command> --help` for inline help.
+
+### enqueue
+Add a job (JSON string). Optional `run_at` for future execution.
+```bash
+queuectl enqueue '{"id":"p1","command":"echo hi"}'
+queuectl enqueue '{"id":"delayed","command":"echo later","run_at":'$(($(date +%s000)+5000))'}'
+```
+Output:
+```
+Job enqueued with ID: p1
+```
+
+### worker-start / worker-stop
+Start or stop worker processes.
+```bash
+queuectl worker-start --count 2
+queuectl worker-stop
+```
+Sample output (truncated):
+```
+Starting 2 worker processes...
+Worker 1 started with PID: 12345
+Worker 2 started with PID: 12346
+[CLAIM] worker worker-12345 claimed job p1
+Worker worker-12345 Processing job: p1
+Worker worker-12345 Completed job: p1
+Worker worker-12345 Job succeeded: p1
+```
+
+### list
+List jobs filtered by state.
+```bash
+queuectl list --state pending
+```
+Output:
+```json
+[
+  {
+    "id": "p1",
+    "command": "echo hi",
+    "state": "pending",
+    "run_at": 1763197724876,
+    "attempts": 0
+  }
+]
+```
+
+### status
+Shows counts of each state + active worker processes.
+```bash
+queuectl status
+```
+Example:
+```
+📊 Queue Status:
+{ activeWorkers: 2, pending: 0, processing: 0, completed: 3, failed: 0 }
+```
+
+### dlq-list / dlq-retry
+Inspect and retry DLQ jobs.
+```bash
+queuectl dlq-list
+queuectl dlq-retry bad1
+```
+Example DLQ entry:
+```json
+{
+  "id": "bad1",
+  "command": "wrongcmd",
+  "attempts": 4,
+  "error": "spawn wrongcmd ENOENT",
+  "failed_at": 1763198000000
 }
 ```
 
-This must NOT contain queue logic — only execution logic.
+### config-get / config-set
+Get or set configuration values.
+```bash
+queuectl config-get
+queuectl config-get max_retries
+queuectl config-set max_retries 5
+```
+Output:
+```
+⚙️ Config updated: max_retries = 5
+```
 
 ---
+## 10. Example Session
+```bash
+# 1. Enqueue jobs
+queuectl enqueue '{"id":"p1","command":"echo 1"}'
+queuectl enqueue '{"id":"p2","command":"echo 2"}'
+queuectl enqueue '{"id":"fail","command":"badcmd"}'
 
-# 🔥 **5. Build Worker Logic (workers/worker.js)**
+# 2. Start workers
+queuectl worker-start --count 2
 
-Now you create the infinite loop that:
+# 3. Observe logs
+[CLAIM] worker worker-12345 claimed job p1
+Worker worker-12345 Completed job: p1
+[CLAIM] worker worker-12346 claimed job p2
+fail failed attempt 1 → retry in 2s
+fail failed attempt 2 → retry in 4s
+fail moved to DLQ
 
-* fetches job
-* processes it
-* sleeps when idle
-* logs events
+# 4. List DLQ
+queuectl dlq-list
 
-### Loop skeleton:
+# 5. Retry from DLQ
+queuectl dlq-retry fail
 
+# 6. Check status
+queuectl status
 ```
-while (true) {
-  const job = queueManager.getNextJob()
-  if (!job) sleep(1000)
-  else jobProcessor.process(job)
-}
-```
-
-Workers MUST use atomic `findOneAndUpdate` when grabbing a job → or you’ll get duplicates.
 
 ---
-
-# 🔥 **6. Build Worker Manager (core/workerManager.js)**
-
-This spawns multiple worker processes.
-
-### Create:
-
-```
-startWorkers(count)
-stopWorkers()
-listWorkers()
-```
-
-Use `child_process.fork` or `cluster`.
+## 11. Troubleshooting
+| Issue | Cause | Fix |
+|-------|-------|-----|
+| Future job runs early | Provided `run_at` missing → defaults to now | Ensure `run_at` ms epoch included |
+| Workers idle too long | High `worker_idle_delay` | `config-set worker_idle_delay 500` |
+| Duplicate processing | Locking disabled/modified | Keep atomic `withLock` usage |
+| Job never retries | `max_retries` too low | Increase via `config-set max_retries` |
+| Command not found | Invalid shell command | Test command manually |
 
 ---
-
-# 🔥 **7. Build CLI Commands (cli/commands)**
-
-Now connect your system to the CLI.
-
-Commands to implement:
-
-### Required:
-
-* `enqueue.js`
-* `worker-start.js`
-* `list.js`
-* `status.js`
-* `dlq-list.js`
-* `dlq-retry.js`
-* `config-set.js`
-* `config-get.js`
-
-### CLI Entry (cli/index.js):
-
-Use commander:
-
-```
-program
-  .command('enqueue <job>')
-  .action(require('./commands/enqueue'))
-```
-
-Do this for all commands.
+## Notes
+Output examples are illustrative; timestamps, PIDs, and ordering vary.  
+This is a minimal learning implementation (file storage). For production: consider a real database, structured logs, metrics, and graceful shutdown coordination.
 
 ---
+## License
+ISC (see package.json).
 
-# 🔥 **8. Test the Full Flow (Manual Tests)**
-
-Test in this order:
-
-### Test 1 — Enqueue simple job
-
-```
-queuectl enqueue '{"id":"1","command":"echo hi"}'
-```
-
-### Test 2 — Start worker
-
-```
-queuectl worker start --count 1
-```
-
-Ensure output shows success.
-
-### Test 3 — Failing job
-
-```
-queuectl enqueue '{"id":"2","command":"invalidcmd"}'
-```
-
-Worker should:
-
-* fail
-* retry with backoff
-* finally DLQ
-* appear in `queuectl dlq list`
-
-### Test 4 — DLQ retry
-
-```
-queuectl dlq retry 2
-```
-
-### Test 5 — Multiple workers
-
-```
-queuectl worker start --count 3
-```
-
-Workers should **not** process the same job.
-
----
-
-# 🔥 **9. Write the README**
-
-Final task.
-
-Include:
-
-* setup
-* DB migration
-* CLI usage
-* architecture
-* job lifecycle
-* retry logic
-* DLQ logic
-* worker logic
-* screenshots
-
----
-
-# 🎯 **NEXT ACTION YOU MUST DO RIGHT NOW**
-
-Now that folder structure is ready, your next step is:
-
-### 👉 **Implement database schemas + repository layer FIRST.**
-
-Nothing else will work until that is complete.
-
-If you want, I can generate the **complete Mongoose schema + repo methods** for you so you instantly save 3–4 hours.
-
-Just say:
-
-### **“Generate the Mongoose schemas and repository layer.”**
